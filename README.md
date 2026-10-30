@@ -9,7 +9,7 @@ A Script that **builds an audio-reactive visualiser** in your Smode scene:
 - DirectSound input (left channel), **2 modes**: bars or peaks;
 - rainbow gradient used as a mask, black bands (opacity depends on the mode);
 - Pixelate + Feedback on the spectrum;
-- exposed parameters: **Freq Max**, **Amplitude Min / Max**, **N Bands**, Compo Width / Height.
+- exposed parameters: **Freq Max** (Hz), **Amplitude Min / Max** (dB), **N Bands**, Compo Width / Height.
 
 ## Install
 

@@ -9,7 +9,7 @@ Un Script qui **construit un visualiseur audio-réactif** dans votre scène Smod
 - entrée DirectSound (canal gauche), **2 modes** : barres ou pics ;
 - dégradé arc-en-ciel utilisé comme masque, bandes noires (opacité selon le mode) ;
 - Pixelate + Feedback sur le spectre ;
-- paramètres exposés : **Freq Max**, **Amplitude Min / Max**, **N Bands**, Compo Width / Height.
+- paramètres exposés : **Freq Max** (Hz), **Amplitude Min / Max** (dB), **N Bands**, Compo Width / Height.
 
 ## Installation
 

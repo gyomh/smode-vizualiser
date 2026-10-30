@@ -6,47 +6,56 @@
 #             ###   ###         ###   ###         ###   ###      ###      ###
 # ############      ###         ###      #########      #########         ###############
 #
-# -------------------- "Guillaume Henrion aka [GYOMH]" "09/07/2026" --------------------
+# -------------------- "Guillaume Henrion aka [GYOMH]" "30/10/2026" --------------------
 # __________________________________________ ___________________________________________
 # |                                       | |                                         |
-# |    VIZUALISER                         | | Visualisation audio-reactive :          |
-# |       V1.3                            | | - Entree DirectSound (canal Left)       |
-# |                                       | | - 2 modes : bars / peaks                |
+# |    VIZUALISER                         | | Audio-reactive visualiser:              |
+# |       V1.4                            | | - DirectSound input (Left channel)      |
+# |                                       | | - 2 modes: bars / peaks                 |
 # |_______________________________________| |_________________________________________|
-# |    Instructions :                     | | - Degrade arc-en-ciel en masque         |
-# | 1- Use Peaks Instead Of Bars          | | - Bandes noires (opacity reglable       |
-# |    (coche = peaks, decoche = bars)    | |   selon le mode)                        |
-# | 2- Ajuster Freq Max / Amplitude       | | - Pixelate + Feedback (spectrum)        |
-# |    Min-Max / N Bands si besoin        | | - Parametres exposes : Freq Max,        |
-# | 3- Execute (Launch Mode = Manual)     | |   Amplitude Min/Max, N Bands            |
+# |    Instructions:                      | | - Rainbow gradient used as mask         |
+# | 1- Use Peaks Instead Of Bars          | | - Black bands (opacity depends on       |
+# |    (checked = peaks, else = bars)     | |   the mode)                             |
+# | 2- Adjust N Bands / Compo Width /     | | - Pixelate + Feedback (spectrum)        |
+# |    Compo Height if needed             | | - Exposed: Freq Max (Hz), Amplitude     |
+# | 3- Execute (Launch Mode = Manual)     | |   Min/Max (dB), Stroke Width            |
 # |_______________________________________| |_________________________________________|
 #
-# HISTORIQUE
-# V1.0 - 07/07/2026 - Version initiale : modes bars/peaks (CustomEnumeration),
-#                      gradient arc-en-ciel, bandes noires, Pixelate+Feedback.
-# V1.1 - 09/07/2026 - Selecteur de mode remplace par une checkbox
-#                      (Use Peaks Instead Of Bars) ; label/stroke/opacity des
-#                      bandes desormais distincts par mode ; en-tete restructure.
-# V1.2 - 09/07/2026 - Resolution de la compo (largeur/hauteur) exposee en
-#                      parametre (Compo Width / Compo Height) au lieu d'etre
-#                      fixee en dur a 1920x1080. Applique aussi sur
-#                      rasterizer.resolution de vizCompo/maskCompo/masterCompo
-#                      (sinon la compo restait a la taille de la compo parente).
-# V1.3 - 09/07/2026 - Fix : rasterizer.resolution demarre en mode "Inherited"
-#                      (ignore width/height) -> preset bascule sur "Custom..."
-#                      avant de fixer les valeurs. Taille X/Y du Linear Gradient
-#                      alignee sur Compo Width/Height (au lieu de 1056.13 fixe).
+# HISTORY
+# V1.0 - 07/07/2026 - Initial version: bars/peaks modes (CustomEnumeration),
+#                      rainbow gradient, black bands, Pixelate+Feedback.
+# V1.1 - 09/07/2026 - Mode selector replaced by a checkbox
+#                      (Use Peaks Instead Of Bars); band label/stroke/opacity
+#                      now differ per mode; header restructured.
+# V1.2 - 09/07/2026 - Compo resolution (width/height) exposed as a parameter
+#                      (Compo Width / Compo Height) instead of a hardcoded
+#                      1920x1080. Also applied to rasterizer.resolution of
+#                      vizCompo/maskCompo/masterCompo (otherwise the compo kept
+#                      the size of its parent compo).
+# V1.3 - 09/07/2026 - Fix: rasterizer.resolution starts in "Inherited" mode
+#                      (ignores width/height) -> preset switched to "Custom..."
+#                      before setting the values. Linear Gradient X/Y size
+#                      aligned on Compo Width/Height (instead of a fixed 1056.13).
+# V1.4 - 30/10/2026 - Fix for Smode R15: the AudioSpectrumExtractor intervals
+#                      changed units (frequencyInterval in Hz, amplitudeInterval
+#                      in dB, both were percentages before). The old percentage
+#                      values were clamped to 22.05 Hz / 0 dB -> zero-width
+#                      intervals, the bands no longer moved. Freq Max is now in
+#                      Hz (Parameter(Frequency)), Amplitude Min/Max in dB
+#                      (Parameter(Decibel)). Spectrum method set to "max"
+#                      (R15 default "mean" flattens wide bands). Comments
+#                      translated to English.
 #
 
-# =============== OPTIONS (visibles/modifiables dans le panneau du Script) ===============
-usePeaksInsteadOfBars: Oil.Boolean(False)       # coche = mode "peaks", decoche = mode "bars"
-nBands: Oil.PositiveInteger(64)                 # nombre de bandes/points de frequence
-freqMaxDefault: Oil.Percentage(0.3)             # valeur initiale du parametre expose "Freq Max"
-amplitudeMinDefault: Oil.Percentage(0.0)        # valeur initiale du parametre expose "Amplitude Min"
-amplitudeMaxDefault: Oil.Percentage(0.277)      # valeur initiale du parametre expose "Amplitude Max"
-compoWidth: Oil.PositiveInteger(1920)           # largeur de la compo (resolution projet)
-compoHeight: Oil.PositiveInteger(1080)          # hauteur de la compo (resolution projet)
-# ==========================================================================================
+# =============== OPTIONS (visible/editable in the Script panel) ===============
+usePeaksInsteadOfBars: Oil.Boolean(False)       # checked = "peaks" mode, unchecked = "bars" mode
+nBands: Oil.PositiveInteger(64)                 # number of frequency bands/points
+freqMaxDefault: Oil.PositiveReal(6615.0)        # initial value of the exposed "Freq Max" parameter (Hz)
+amplitudeMinDefault: Oil.Real(-50.0)            # initial value of the exposed "Amplitude Min" parameter (dB)
+amplitudeMaxDefault: Oil.Real(0.0)              # initial value of the exposed "Amplitude Max" parameter (dB)
+compoWidth: Oil.PositiveInteger(1920)           # compo width (project resolution)
+compoHeight: Oil.PositiveInteger(1080)          # compo height (project resolution)
+# ================================================================================
 
 MODE = "peaks" if script.usePeaksInsteadOfBars.get() else "bars"
 N_BANDS = script.nBands.get()
@@ -55,10 +64,13 @@ AMPLITUDE_MIN_DEFAULT = script.amplitudeMinDefault.get()
 AMPLITUDE_MAX_DEFAULT = script.amplitudeMaxDefault.get()
 COMPO_WIDTH = script.compoWidth.get()
 COMPO_HEIGHT = script.compoHeight.get()
-RESOLUTION_PRESET_CUSTOM = 40  # InheritableImageResolution.preset : "Custom..." (trouve par
-                                # diagnostic ; 41 = "Inherited", qui ignore width/height tant
-                                # qu'il reste actif -> il faut basculer sur Custom avant de
-                                # fixer width/height, sinon la compo garde la taille du parent.
+RESOLUTION_PRESET_CUSTOM = 40  # InheritableImageResolution.preset: "Custom..." (found by
+                                # diagnostic; 41 = "Inherited", which ignores width/height as
+                                # long as it stays active -> switch to Custom before setting
+                                # width/height, otherwise the compo keeps its parent's size).
+AMPLITUDE_FLOOR_DB = -50.0     # lowest value accepted by amplitudeInterval (R15 clamps below)
+SPECTRUM_METHOD_MAX = 1        # AudioSpectrumExtractorMethod: 0=mean, 1=max, 2=smoothMax
+                                # (mean averages the whole band -> almost flat on wide bands)
 
 if MODE == "peaks":
     STROKE_THICKNESS_DEFAULT = 2.0
@@ -69,7 +81,7 @@ else:
     VIZ_LABEL = "Vizualiser Bars"
     BANDS_OPACITY = 0.5
 
-# --- Supprime l'ancienne version (label depend du mode -> les deux labels possibles) ---
+# --- Remove the previous version (the label depends on the mode -> check both labels) ---
 POSSIBLE_LABELS = {"Vizualiser Bars", "Vizualiser Peek"}
 oldLayer = None
 for l in script.parentElement.layers:
@@ -84,12 +96,12 @@ vizCompo.rasterizer.resolution.preset.set(RESOLUTION_PRESET_CUSTOM)
 vizCompo.rasterizer.resolution.width.set(COMPO_WIDTH)
 vizCompo.rasterizer.resolution.height.set(COMPO_HEIGHT)
 
-# --- Shape : construction des points selon le mode ---
+# --- Shape: build the points according to the mode ---
 shapeLayer = Oil.createObject("ShapeLayer")
 shapeLayer.label = "Waveform"
 pathGen = Oil.createObject("PathShapeGenerator")
 
-oscillatingPoints = []  # (Path2dControlPoint, index_bande)
+oscillatingPoints = []  # (Path2dControlPoint, band_index)
 
 if MODE == "peaks":
     TOTAL_POINTS = N_BANDS * 2 - 1
@@ -114,40 +126,40 @@ elif MODE == "bars":
                 oscillatingPoints.append((cp, i))
 
 else:
-    raise ValueError(f"MODE inconnu : {MODE}")
+    raise ValueError(f"Unknown MODE: {MODE}")
 
 shapeLayer.generator = pathGen
 shapeLayer.renderer.fill.enabled = False
 shapeLayer.renderer.stroke.enabled = True
 shapeLayer.renderer.stroke.thickness.set(STROKE_THICKNESS_DEFAULT)
-# Note : shapeLayer n'est PAS ajoute directement a vizCompo.layers - il sert de
-# masque au gradient (voir plus bas), pas affiche tel quel.
+# Note: shapeLayer is NOT added directly to vizCompo.layers - it is used as a
+# mask for the gradient (see below), not displayed as is.
 
-# --- Compo interne portant la shape, utilisee comme masque ---
-# Installee ICI, avant la creation des Links qui ciblent des sous-elements de
-# shapeLayer (points, stroke.thickness) - bonne pratique (voir note plus haut).
+# --- Inner compo holding the shape, used as a mask ---
+# Installed HERE, before creating the Links that target sub-elements of
+# shapeLayer (points, stroke.thickness) - good practice.
 maskCompo = Oil.createObject("Compo")
 maskCompo.rasterizer.resolution.preset.set(RESOLUTION_PRESET_CUSTOM)
 maskCompo.rasterizer.resolution.width.set(COMPO_WIDTH)
 maskCompo.rasterizer.resolution.height.set(COMPO_HEIGHT)
 maskCompo.layers.append(shapeLayer)
 
-# --- Parameter Bank : Freq Max / Amplitude Min / Amplitude Max / Stroke Width ---
-# Place en PREMIER dans vizCompo.tools pour un acces facile dans l'UI.
+# --- Parameter Bank: Freq Max / Amplitude Min / Amplitude Max / Stroke Width ---
+# Placed FIRST in vizCompo.tools for easy access in the UI.
 paramBank = Oil.createObject("ParameterBank")
 paramBank.label = "Parameters"
 
-freqMaxParam = Oil.createObject("Parameter(Percentage)")
+freqMaxParam = Oil.createObject("Parameter(Frequency)")
 freqMaxParam.label = "Freq Max"
 freqMaxParam.value.set(FREQ_MAX_DEFAULT)
 paramBank.parameters.append(freqMaxParam)
 
-ampMinParam = Oil.createObject("Parameter(Percentage)")
+ampMinParam = Oil.createObject("Parameter(Decibel)")
 ampMinParam.label = "Amplitude Min"
 ampMinParam.value.set(AMPLITUDE_MIN_DEFAULT)
 paramBank.parameters.append(ampMinParam)
 
-ampMaxParam = Oil.createObject("Parameter(Percentage)")
+ampMaxParam = Oil.createObject("Parameter(Decibel)")
 ampMaxParam.label = "Amplitude Max"
 ampMaxParam.value.set(AMPLITUDE_MAX_DEFAULT)
 paramBank.parameters.append(ampMaxParam)
@@ -159,7 +171,7 @@ paramBank.parameters.append(strokeParam)
 
 vizCompo.tools.append(paramBank)
 
-# --- Device audio : canal Left du device DirectSound ---
+# --- Audio device: Left channel of the DirectSound device ---
 dsDevice = None
 for d in engine.devices.devices:
     if d.getOilClassName() == "JuceAudioDevice" and "DirectSound" in str(d.identifier):
@@ -171,17 +183,23 @@ for ch in dsDevice.inputChannels:
         audioChannel = ch
         break
 
-# --- Link Bank : un AudioSpectrumLinkSource par point oscillant ---
+# --- Link Bank: one AudioSpectrumLinkSource per oscillating point ---
+# Interval bounds are clamped (end >= begin), so open the interval wide first
+# (begin at its floor), then set end, then begin - otherwise a value can be
+# clamped against the default interval (330-550 Hz / -40-0 dB).
 linkBank = Oil.createObject("LinkBank")
 linkBank.label = "Audio Spectrum"
 extractors = []
 for cp, idx in oscillatingPoints:
     source = Oil.createObject("AudioSpectrumLinkSource")
+    source.method.set(SPECTRUM_METHOD_MAX)
     source.extractor.audioChannel.set(audioChannel)
-    source.extractor.frequencyInterval.begin.set(idx / N_BANDS * FREQ_MAX_DEFAULT)
+    source.extractor.frequencyInterval.begin.set(0.0)
     source.extractor.frequencyInterval.end.set((idx + 1) / N_BANDS * FREQ_MAX_DEFAULT)
-    source.extractor.amplitudeInterval.begin.set(AMPLITUDE_MIN_DEFAULT)
+    source.extractor.frequencyInterval.begin.set(idx / N_BANDS * FREQ_MAX_DEFAULT)
+    source.extractor.amplitudeInterval.begin.set(AMPLITUDE_FLOOR_DB)
     source.extractor.amplitudeInterval.end.set(AMPLITUDE_MAX_DEFAULT)
+    source.extractor.amplitudeInterval.begin.set(AMPLITUDE_MIN_DEFAULT)
 
     smoothMod = Oil.createObject("SmoothLinkModifier")
     smoothMod.positiveSpeed.set(20.0)
@@ -200,7 +218,7 @@ for cp, idx in oscillatingPoints:
 
 vizCompo.tools.append(linkBank)
 
-# --- Links : Freq Max -> chaque frequencyInterval.begin/end (facteur proportionnel par bande) ---
+# --- Links: Freq Max -> each frequencyInterval.begin/end (proportional factor per band) ---
 freqLinkBank = Oil.createObject("LinkBank")
 freqLinkBank.label = "Freq Max Scaling"
 for extractor, idx in extractors:
@@ -235,7 +253,7 @@ for extractor, idx in extractors:
 
 vizCompo.tools.append(freqLinkBank)
 
-# --- Links : Amplitude Min/Max -> tous les amplitudeInterval.begin/end (partages) ---
+# --- Links: Amplitude Min/Max -> every amplitudeInterval.begin/end (shared) ---
 ampMinSource = Oil.createObject("ParameterLinkSource")
 ampMinSource.target.set(ampMinParam.value)
 ampMinLink = Oil.createObject("Link")
@@ -262,7 +280,7 @@ ampLinkBank.links.append(ampMinLink)
 ampLinkBank.links.append(ampMaxLink)
 vizCompo.tools.append(ampLinkBank)
 
-# --- Link : Stroke Width ---
+# --- Link: Stroke Width ---
 strokeSource = Oil.createObject("ParameterLinkSource")
 strokeSource.target.set(strokeParam.value)
 strokeTarget = Oil.createObject("ParameterLinkTarget")
@@ -276,7 +294,7 @@ strokeLinkBank.label = "Stroke Width"
 strokeLinkBank.links.append(strokeLink)
 vizCompo.tools.append(strokeLinkBank)
 
-# --- Gradient Texture Generator (arc-en-ciel) avec le waveform en masque ---
+# --- Gradient Texture Generator (rainbow) with the waveform as mask ---
 gen = Oil.createObject("GradientTextureGenerator")
 gen.type = Oil.createObject("Linear2dGradient")
 gen.smoothness.set(2.0)
@@ -325,11 +343,11 @@ gradLayer.generator = gen
 gradLayer.label = "Linear Gradient"
 vizCompo.layers.append(gradLayer)
 
-# --- Effets de post-traitement sur la Compo "spectrum" (Pixelate + Feedback) ---
-# NE PAS mettre les bandes noires dans cette Compo : elles doivent rester EN DEHORS,
-# sinon elles subissent aussi le Pixelate/Feedback (voir Compo master plus bas).
-PIXELATE_MODE_NUM_PIXELS_WIDTH = 1  # PixelateMode : 0=downscaleFactor, 1=numPixelsWidth, 2=numPixelsHeight
-BLENDING_MODE_SCREEN = 10           # BlendingMode : ... 10=screen (trouve par diagnostic)
+# --- Post-processing effects on the "spectrum" Compo (Pixelate + Feedback) ---
+# DO NOT put the black bands in this Compo: they must stay OUTSIDE, otherwise
+# they also get the Pixelate/Feedback (see master Compo below).
+PIXELATE_MODE_NUM_PIXELS_WIDTH = 1  # PixelateMode: 0=downscaleFactor, 1=numPixelsWidth, 2=numPixelsHeight
+BLENDING_MODE_SCREEN = 10           # BlendingMode: ... 10=screen (found by diagnostic)
 
 pixelateMod = Oil.createObject("PixelateTextureModifier")
 pixelateMod.mode.set(PIXELATE_MODE_NUM_PIXELS_WIDTH)
@@ -343,20 +361,20 @@ feedbackMod.intensity.set(1.0)
 feedbackMod.feedbackLevel.set(0.8)
 vizCompo.modifiers.append(feedbackMod)
 
-# --- vizCompo (spectrum) enveloppee dans une TextureLayer ---
+# --- vizCompo (spectrum) wrapped in a TextureLayer ---
 spectrumLayer = Oil.createObject("TextureLayer")
 spectrumLayer.generator = vizCompo
 spectrumLayer.label = "spectrum"
 
-# --- Bandes noires (CheckerBoardTextureGenerator detourne : cellules tres larges/plates,
-# une couleur opaque noire, l'autre transparente -> effet de bandes). EN DEHORS de la
-# Compo spectrum, donc PAS affectees par le Pixelate/Feedback ci-dessus. ---
+# --- Black bands (CheckerBoardTextureGenerator hijacked: very wide/flat cells, one
+# opaque black color, the other transparent -> band effect). OUTSIDE the spectrum
+# Compo, so NOT affected by the Pixelate/Feedback above. ---
 bandsLayer = Oil.createObject("TextureLayer")
 bandsLayer.label = "Horizontal Bands"
 bandsGen = Oil.createObject("CheckerBoardTextureGenerator")
 
-# IMPORTANT : delier width/height AVANT de les regler, sinon ils restent forces a la
-# meme valeur (size.linked / balance.linked = True par defaut).
+# IMPORTANT: unlink width/height BEFORE setting them, otherwise they stay forced to
+# the same value (size.linked / balance.linked = True by default).
 bandsGen.size.linked.set(False)
 bandsGen.size.width.set(-0.3)
 bandsGen.size.height.set(0.005)
@@ -376,7 +394,7 @@ bandsGen.oddColor.alpha.set(0.0)
 bandsLayer.generator = bandsGen
 bandsLayer.renderer.opacity.set(BANDS_OPACITY)
 
-# --- Compo master : spectrum + Horizontal Bands, cote a cote ---
+# --- Master compo: spectrum + Horizontal Bands, side by side ---
 masterCompo = Oil.createObject("Compo")
 masterCompo.rasterizer.resolution.preset.set(RESOLUTION_PRESET_CUSTOM)
 masterCompo.rasterizer.resolution.width.set(COMPO_WIDTH)
@@ -384,11 +402,11 @@ masterCompo.rasterizer.resolution.height.set(COMPO_HEIGHT)
 masterCompo.layers.append(spectrumLayer)
 masterCompo.layers.append(bandsLayer)
 
-# --- Wrap dans une TextureLayer + flip vertical + insertion dans la scene ---
+# --- Wrap in a TextureLayer + vertical flip + insert into the scene ---
 vizLayer = Oil.createObject("TextureLayer")
 vizLayer.generator = masterCompo
 vizLayer.label = VIZ_LABEL
 vizLayer.renderer.placement.verticalFlip = True
 script.parentElement.layers.append(vizLayer)
 
-result = f"vizualiser recree (mode={MODE}) : {N_BANDS} bandes, master(spectrum + bandes noires)"
+result = f"vizualiser rebuilt (mode={MODE}): {N_BANDS} bands, master(spectrum + black bands)"
